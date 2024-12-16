@@ -1,16 +1,11 @@
-"use strict";
+import fs from "node:fs/promises";
+import util from "node:util";
+import { exec as nodeExec } from "node:child_process";
 
-const fs = require( "fs" );
-const util = require( "util" );
-const exec = util.promisify( require( "child_process" ).exec );
-const verifyNodeVersion = require( "./lib/verifyNodeVersion" );
+const exec = util.promisify( nodeExec );
 
-const allowedLibraryTypes = [ "regular", "factory" ];
-const allowedSourceTypes = [ "commonjs", "module" ];
-
-if ( !verifyNodeVersion() ) {
-	return;
-}
+const allowedLibraryTypes = new Set( [ "regular", "factory" ] );
+const allowedSourceTypes = new Set( [ "commonjs", "module", "dual" ] );
 
 // Fire up all tests defined in test/node_smoke_tests/*.js in spawned sub-processes.
 // All the files under test/node_smoke_tests/*.js are supposed to exit with 0 code
@@ -19,14 +14,14 @@ if ( !verifyNodeVersion() ) {
 // each other, e.g. so that they don't share the `require` cache.
 
 async function runTests( { libraryType, sourceType, module } ) {
-	if ( !allowedLibraryTypes.includes( libraryType ) ||
-			!allowedSourceTypes.includes( sourceType ) ) {
+	if ( !allowedLibraryTypes.has( libraryType ) ||
+			!allowedSourceTypes.has( sourceType ) ) {
 		throw new Error( `Incorrect libraryType or sourceType value; passed: ${
 			libraryType
 		} ${ sourceType } "${ module }"` );
 	}
 	const dir = `./test/node_smoke_tests/${ sourceType }/${ libraryType }`;
-	const files = await fs.promises.readdir( dir, { withFileTypes: true } );
+	const files = await fs.readdir( dir, { withFileTypes: true } );
 	const testFiles = files.filter( ( testFilePath ) => testFilePath.isFile() );
 
 	if ( !testFiles.length ) {
@@ -127,6 +122,28 @@ async function runDefaultTests() {
 			libraryType: "factory",
 			sourceType: "module",
 			module: "./dist-module/jquery.factory.slim.module.js"
+		} ),
+
+		runTests( {
+			libraryType: "regular",
+			sourceType: "dual",
+			module: "jquery"
+		} ),
+		runTests( {
+			libraryType: "regular",
+			sourceType: "dual",
+			module: "jquery/slim"
+		} ),
+
+		runTests( {
+			libraryType: "factory",
+			sourceType: "dual",
+			module: "jquery/factory"
+		} ),
+		runTests( {
+			libraryType: "factory",
+			sourceType: "dual",
+			module: "jquery/factory-slim"
 		} )
 	] );
 }

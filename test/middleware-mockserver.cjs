@@ -1,11 +1,24 @@
 "use strict";
 
-const url = require( "url" );
-const fs = require( "fs" );
+const url = require( "node:url" );
+const fs = require( "node:fs" );
 const getRawBody = require( "raw-body" );
 const multiparty = require( "multiparty" );
 
 let cspLog = "";
+
+/**
+ * Like `readFileSync`, but on error returns "ERROR"
+ * without crashing.
+ * @param path
+ */
+function readFileSync( path ) {
+	try {
+		return fs.readFileSync( path );
+	} catch ( e ) {
+		return "ERROR";
+	}
+}
 
 /**
  * Keep in sync with /test/mock.php
@@ -80,13 +93,7 @@ const mocks = {
 			headers[ "access-control-allow-origin" ] = "*";
 		}
 
-		if ( resp.set ) {
-			resp.set( headers );
-		} else {
-			for ( const key in headers ) {
-				resp.writeHead( 200, { [ key ]: headers[ key ] } );
-			}
-		}
+		resp.writeHead( 200, headers );
 
 		if ( req.query.callback ) {
 			resp.end( `${ cleanCallback( req.query.callback ) }(${ JSON.stringify( {
@@ -105,12 +112,14 @@ const mocks = {
 		);
 	},
 	json: function( req, resp ) {
+		const headers = {};
 		if ( req.query.header ) {
-			resp.writeHead( 200, { "content-type": "application/json" } );
+			headers[ "content-type" ] = "application/json";
 		}
 		if ( req.query.cors ) {
-			resp.writeHead( 200, { "access-control-allow-origin": "*" } );
+			headers[ "access-control-allow-origin" ] = "*";
 		}
+		resp.writeHead( 200, headers );
 		if ( req.query.array ) {
 			resp.end( JSON.stringify(
 				[ { name: "John", age: 21 }, { name: "Peter", age: 25 } ]
@@ -147,7 +156,7 @@ const mocks = {
 	},
 	xmlOverJsonp: function( req, resp ) {
 		const callback = req.query.callback;
-		const body = fs.readFileSync( `${ __dirname }/data/with_fries.xml` ).toString();
+		const body = readFileSync( `${ __dirname }/data/with_fries.xml` ).toString();
 		resp.writeHead( 200 );
 		resp.end( `${ cleanCallback( callback ) }(${ JSON.stringify( body ) })\n` );
 	},
@@ -183,16 +192,7 @@ const mocks = {
 			"constructor": "prototype collision (constructor)"
 		};
 
-		// Use resp.append in express to
-		// avoid overwriting List-Header
-		if ( resp.append ) {
-
-			for ( const key in headers ) {
-				resp.append( key, headers[ key ] );
-			}
-		} else {
-			resp.writeHead( 200, headers );
-		}
+		resp.writeHead( 200, headers );
 		req.query.keys.split( "|" ).forEach( function( key ) {
 			if ( key.toLowerCase() in req.headers ) {
 				resp.write( `${ key }: ${ req.headers[ key.toLowerCase() ] }\n` );
@@ -251,8 +251,9 @@ const mocks = {
 	},
 	testHTML: function( req, resp ) {
 		resp.writeHead( 200, { "Content-Type": "text/html" } );
-		const body = fs
-			.readFileSync( `${ __dirname }/data/test.include.html` )
+		const body = readFileSync(
+				`${ __dirname }/data/test.include.html`
+			)
 			.toString()
 			.replace( /{{baseURL}}/g, req.query.baseURL );
 		resp.end( body );
@@ -261,19 +262,21 @@ const mocks = {
 		resp.writeHead( 200, {
 			"Content-Type": "text/html",
 			"Content-Security-Policy": "default-src 'self'; require-trusted-types-for 'script'; " +
-				"report-uri /base/test/data/mock.php?action=cspLog"
+				"report-uri /test/data/mock.php?action=cspLog"
 		} );
-		const body = fs.readFileSync( `${ __dirname }/data/csp.include.html` ).toString();
+		const body = readFileSync( `${ __dirname }/data/csp.include.html` ).toString();
 		resp.end( body );
 	},
 	cspNonce: function( req, resp ) {
-		const testParam = req.query.test ? `-${ req.query.test }` : "";
+		const testParam = req.query.test ?
+			`-${ req.query.test.replace( /[^a-z0-9]/gi, "" ) }` :
+			"";
 		resp.writeHead( 200, {
 			"Content-Type": "text/html",
 			"Content-Security-Policy": "script-src 'nonce-jquery+hardcoded+nonce'; " +
-				"report-uri /base/test/data/mock.php?action=cspLog"
+				"report-uri /test/data/mock.php?action=cspLog"
 		} );
-		const body = fs.readFileSync(
+		const body = readFileSync(
 			`${ __dirname }/data/csp-nonce${ testParam }.html` ).toString();
 		resp.end( body );
 	},
@@ -281,9 +284,9 @@ const mocks = {
 		resp.writeHead( 200, {
 			"Content-Type": "text/html",
 			"Content-Security-Policy": "script-src 'self'; " +
-				"report-uri /base/test/data/mock.php?action=cspLog"
+				"report-uri /test/data/mock.php?action=cspLog"
 		} );
-		const body = fs.readFileSync(
+		const body = readFileSync(
 			`${ __dirname }/data/csp-ajax-script.html` ).toString();
 		resp.end( body );
 	},
@@ -301,18 +304,18 @@ const mocks = {
 		resp.writeHead( 200, {
 			"Content-Type": "text/html",
 			"Content-Security-Policy": "require-trusted-types-for 'script'; " +
-				"report-uri /base/test/data/mock.php?action=cspLog"
+				"report-uri /test/data/mock.php?action=cspLog"
 		} );
-		const body = fs.readFileSync( `${ __dirname }/data/trusted-html.html` ).toString();
+		const body = readFileSync( `${ __dirname }/data/trusted-html.html` ).toString();
 		resp.end( body );
 	},
 	trustedTypesAttributes: function( _req, resp ) {
 		resp.writeHead( 200, {
 			"Content-Type": "text/html",
 			"Content-Security-Policy": "require-trusted-types-for 'script'; " +
-				"report-uri /base/test/data/mock.php?action=cspLog"
+				"report-uri /test/data/mock.php?action=cspLog"
 		} );
-		const body = fs.readFileSync(
+		const body = readFileSync(
 			`${ __dirname }/data/trusted-types-attributes.html` ).toString();
 		resp.end( body );
 	},
@@ -352,11 +355,7 @@ const handlers = {
 
 /**
  * Connect-compatible middleware factory for mocking server responses.
- * Used by Ajax unit tests when run via Karma.
- *
- * Despite Karma using Express, it uses Connect to deal with custom middleware,
- * which passes the raw Node Request and Response objects instead of the
- * Express versions of these (e.g. no req.path, req.query, resp.set).
+ * Used by Ajax tests run in Node.
  */
 function MockserverMiddlewareFactory() {
 
@@ -367,7 +366,7 @@ function MockserverMiddlewareFactory() {
 	 */
 	return function( req, resp, next ) {
 		const parsed = url.parse( req.url, /* parseQuery */ true );
-		let path = parsed.pathname.replace( /^\/base\//, "" );
+		let path = parsed.pathname;
 		const query = parsed.query;
 		const subReq = Object.assign( Object.create( req ), {
 			query: query,

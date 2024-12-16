@@ -93,10 +93,10 @@ QUnit.test( "trigger() shortcuts", function( assert ) {
 	assert.equal( counter, 1, "Check that click, triggers onclick event handler also" );
 
 	clickCounter = 0;
-	jQuery( "#simon1" )[ 0 ].onclick = function() {
+	jQuery( "#john1" )[ 0 ].onclick = function() {
 		clickCounter++;
 	};
-	jQuery( "#simon1" ).click();
+	jQuery( "#john1" ).click();
 	assert.equal( clickCounter, 1, "Check that click, triggers onclick event handler on an a tag also" );
 } );
 
@@ -204,5 +204,18 @@ QUnit.test( "jQuery.proxy", function( assert ) {
 	cb = jQuery.proxy( fn, null, "arg1", "arg2" );
 	cb.call( thisObject, "arg3" );
 } );
+
+if ( includesModule( "selector" ) ) {
+	QUnit[ QUnit.jQuerySelectors ? "test" : "skip" ](
+		"jQuery.expr[ \":\" ], jQuery.expr.filters",
+		function( assert ) {
+			assert.expect( 2 );
+
+			assert.strictEqual( jQuery.expr[ ":" ], jQuery.expr.pseudos,
+				"jQuery.expr[ \":\" ] is an alias of jQuery.expr.pseudos" );
+			assert.strictEqual( jQuery.expr.filters, jQuery.expr.pseudos,
+				"jQuery.expr.filters is an alias of jQuery.expr.pseudos" );
+		} );
+}
 
 }

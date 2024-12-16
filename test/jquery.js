@@ -1,15 +1,8 @@
 // Use the right jQuery source on the test page (and iframes)
 ( function() {
-	/* global loadTests: false */
-
 	var dynamicImportSource, config, src,
-		FILEPATH = "/test/jquery.js",
-		activeScript = [].slice.call( document.getElementsByTagName( "script" ), -1 )[ 0 ],
-		parentUrl = activeScript && activeScript.src ?
-			activeScript.src.replace( /[?#].*/, "" ) + FILEPATH.replace( /[^/]+/g, ".." ) + "/" :
-			"../",
-		QUnit = window.QUnit,
-		require = window.require;
+		parentUrl = window.location.protocol + "//" + window.location.host,
+		QUnit = window.QUnit;
 
 	function getQUnitConfig() {
 		var config = Object.create( null );
@@ -58,7 +51,7 @@
 		// IE doesn't support the dynamic import syntax so it would crash
 		// with a SyntaxError here.
 		dynamicImportSource = "" +
-			"import( `${ parentUrl }src/jquery.js` )\n" +
+			"import( `${ parentUrl }/src/jquery.js` )\n" +
 			"	.then( ( { jQuery } ) => {\n" +
 			"		window.jQuery = jQuery;\n" +
 			"		if ( typeof loadTests === \"function\" ) {\n" +
@@ -75,7 +68,7 @@
 
 	// Otherwise, load synchronously
 	} else {
-		document.write( "<script id='jquery-js' nonce='jquery+hardcoded+nonce' src='" + parentUrl + src + "'><\x2Fscript>" );
+		document.write( "<script id='jquery-js' nonce='jquery+hardcoded+nonce' src='" + parentUrl + "/" + src + "'><\x2Fscript>" );
 	}
 
 } )();

@@ -98,7 +98,7 @@ You can also use jQuery from npm even in the browser setup. Read along for more 
 
 ### Using jQuery from npm
 
-There are several ways to use jQuery from npm. One is to use a build tool like [Webpack](https://webpack.js.org/), [Browserify](http://browserify.org/) or [Babel](https://babeljs.io/). For more information on using these tools, please refer to the corresponding project's documentation.
+There are several ways to use jQuery from npm. One is to use a build tool like [Webpack](https://webpack.js.org/), [Browserify](https://browserify.org/) or [Babel](https://babeljs.io/). For more information on using these tools, please refer to the corresponding project's documentation.
 
 Another way is to use jQuery directly in Node.js. See the [Node.js pre-requisites](#nodejs-pre-requisites) section for more details on the Node.js-specific part of this.
 
@@ -119,6 +119,8 @@ If you need to use jQuery in a file that's not an ECMAScript module, you can use
 ```js
 const $ = require( "jquery" );
 ```
+
+The CommonJS module _does not_ expose named `$` & `jQuery` exports.
 
 #### Individual modules
 
