@@ -4,7 +4,7 @@ if ( !includesModule( "offset" ) ) {
 	return;
 }
 
-var supportsScroll, alwaysScrollable,
+var alwaysScrollable,
 	forceScroll = supportjQuery( "<div></div>" ).css( { width: 2000, height: 2000 } ),
 	checkSupport = function( assert ) {
 
@@ -14,7 +14,6 @@ var supportsScroll, alwaysScrollable,
 		// Append forceScroll to the body instead of #qunit-fixture because the latter is hidden
 		forceScroll.appendTo( "body" );
 		window.scrollTo( 200, 200 );
-		supportsScroll = document.documentElement.scrollTop || document.body.scrollTop;
 		forceScroll.detach();
 
 		// Support: iOS <=7 - 12+
@@ -363,7 +362,7 @@ testIframe( "static", "offset/static.html", function( assert, $ ) {
 	} );
 } );
 
-testIframe( "fixed", "offset/fixed.html", function( assert, $, window ) {
+testIframe( "fixed", "offset/fixed.html", function( assert, $ ) {
 	assert.expect( 38 );
 
 	var tests, $noTopLeft;
@@ -386,22 +385,12 @@ testIframe( "fixed", "offset/fixed.html", function( assert, $, window ) {
 	];
 
 	jQuery.each( tests, function() {
-		if ( !window.supportsScroll ) {
-			assert.ok( true, "Browser doesn't support scroll position." );
-			assert.ok( true, "Browser doesn't support scroll position." );
-			assert.ok( true, "Browser doesn't support scroll position." );
-			assert.ok( true, "Browser doesn't support scroll position." );
-			assert.ok( true, "Browser doesn't support scroll position." );
-			assert.ok( true, "Browser doesn't support scroll position." );
-
-		} else {
-			assert.equal( jQuery.isPlainObject( $( this.id ).offset() ), true, "jQuery('" + this.id + "').offset() is plain object" );
-			assert.equal( jQuery.isPlainObject( $( this.id ).position() ), true, "jQuery('" + this.id + "').position() is plain object" );
-			assert.equal( $( this.id ).offset().top,  this.offsetTop,  "jQuery('" + this.id + "').offset().top" );
-			assert.equal( $( this.id ).position().top,  this.positionTop,  "jQuery('" + this.id + "').position().top" );
-			assert.equal( $( this.id ).offset().left, this.offsetLeft, "jQuery('" + this.id + "').offset().left" );
-			assert.equal( $( this.id ).position().left,  this.positionLeft,  "jQuery('" + this.id + "').position().left" );
-		}
+		assert.equal( jQuery.isPlainObject( $( this.id ).offset() ), true, "jQuery('" + this.id + "').offset() is plain object" );
+		assert.equal( jQuery.isPlainObject( $( this.id ).position() ), true, "jQuery('" + this.id + "').position() is plain object" );
+		assert.equal( $( this.id ).offset().top,  this.offsetTop,  "jQuery('" + this.id + "').offset().top" );
+		assert.equal( $( this.id ).position().top,  this.positionTop,  "jQuery('" + this.id + "').position().top" );
+		assert.equal( $( this.id ).offset().left, this.offsetLeft, "jQuery('" + this.id + "').offset().left" );
+		assert.equal( $( this.id ).position().left,  this.positionLeft,  "jQuery('" + this.id + "').position().left" );
 	} );
 
 	tests = [
@@ -436,13 +425,16 @@ testIframe( "fixed", "offset/fixed.html", function( assert, $, window ) {
 } );
 
 testIframe( "table", "offset/table.html", function( assert, $ ) {
-	assert.expect( 4 );
+	assert.expect( 6 );
 
 	assert.equal( $( "#table-1" ).offset().top, 6, "jQuery('#table-1').offset().top" );
 	assert.equal( $( "#table-1" ).offset().left, 6, "jQuery('#table-1').offset().left" );
 
 	assert.equal( $( "#th-1" ).offset().top, 10, "jQuery('#th-1').offset().top" );
 	assert.equal( $( "#th-1" ).offset().left, 10, "jQuery('#th-1').offset().left" );
+
+	assert.equal( $( "#th-1" ).position().top, 10, "jQuery('#th-1').position().top" );
+	assert.equal( $( "#th-1" ).position().left, 10, "jQuery('#th-1').position().left" );
 } );
 
 testIframe( "scroll", "offset/scroll.html", function( assert, $, win ) {
@@ -473,19 +465,11 @@ testIframe( "scroll", "offset/scroll.html", function( assert, $, win ) {
 
 	win.name = "test";
 
-	if ( !window.supportsScroll ) {
-		assert.ok( true, "Browser doesn't support scroll position." );
-		assert.ok( true, "Browser doesn't support scroll position." );
+	assert.equal( $( win ).scrollTop(), 1000, "jQuery(window).scrollTop()" );
+	assert.equal( $( win ).scrollLeft(), 1000, "jQuery(window).scrollLeft()" );
 
-		assert.ok( true, "Browser doesn't support scroll position." );
-		assert.ok( true, "Browser doesn't support scroll position." );
-	} else {
-		assert.equal( $( win ).scrollTop(), 1000, "jQuery(window).scrollTop()" );
-		assert.equal( $( win ).scrollLeft(), 1000, "jQuery(window).scrollLeft()" );
-
-		assert.equal( $( win.document ).scrollTop(), 1000, "jQuery(document).scrollTop()" );
-		assert.equal( $( win.document ).scrollLeft(), 1000, "jQuery(document).scrollLeft()" );
-	}
+	assert.equal( $( win.document ).scrollTop(), 1000, "jQuery(document).scrollTop()" );
+	assert.equal( $( win.document ).scrollLeft(), 1000, "jQuery(document).scrollLeft()" );
 
 	// test jQuery using parent window/document
 	// jQuery reference here is in the iframe

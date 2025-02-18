@@ -1448,13 +1448,22 @@ QUnit[ /(ipad|iphone|ipod)/i.test( navigator.userAgent ) ? "skip" : "test" ](
 	var done = assert.async();
 
 	window.onmessage = function( event ) {
-		var payload = JSON.parse( event.data );
+		try {
+			var payload = JSON.parse( event.data );
 
-		assert.ok( payload.event, "beforeunload", "beforeunload event" );
+			// Ignore unrelated messages
+			if ( payload.source === "jQuery onbeforeunload iframe test" ) {
+				assert.ok( payload.event, "beforeunload", "beforeunload event" );
 
-		iframe.remove();
-		window.onmessage = null;
-		done();
+				iframe.remove();
+				window.onmessage = null;
+				done();
+			}
+		} catch ( e ) {
+
+			// Messages may come from other sources, like browser extensions;
+			// some may not be valid JSONs and thus cannot be `JSON.parse`d.
+		}
 	};
 
 	iframe.appendTo( "#qunit-fixture" );
@@ -2226,7 +2235,7 @@ QUnit.test( "window resize", function( assert ) {
 } );
 
 QUnit.test( "focusin bubbles", function( assert ) {
-	assert.expect( 2 );
+	assert.expect( 3 );
 
 	var input = jQuery( "<input type='text' />" ).prependTo( "body" ),
 		order = 0;
@@ -2242,14 +2251,13 @@ QUnit.test( "focusin bubbles", function( assert ) {
 		assert.equal( 0, order++, "focusin on the element first" );
 	} );
 
-// Removed since DOM focus is unreliable on test swarm
 	// DOM focus method
-//	input[ 0 ].focus();
+	input[ 0 ].focus();
 
 	// To make the next focus test work, we need to take focus off the input.
 	// This will fire another focusin event, so set order to reflect that.
-//	order = 1;
-//	jQuery( "#text1" )[ 0 ].focus();
+	order = 1;
+	jQuery( "#text1" )[ 0 ].focus();
 
 	// jQuery trigger, which calls DOM focus
 	order = 0;
@@ -2276,13 +2284,12 @@ QUnit.test( "focus does not bubble", function( assert ) {
 		assert.ok( true, "focus on the element" );
 	} );
 
-// Removed since DOM focus is unreliable on test swarm
 	// DOM focus method
-//	input[ 0 ].focus();
+	input[ 0 ].focus();
 
 	// To make the next focus test work, we need to take focus off the input.
 	// This will fire another focusin event, so set order to reflect that.
-//	jQuery( "#text1" )[ 0 ].focus();
+	jQuery( "#text1" )[ 0 ].focus();
 
 	// jQuery trigger, which calls DOM focus
 	input.trigger( "focus" );
@@ -2691,7 +2698,6 @@ testIframe(
 		assert.expect( 1 );
 
 		var done = assert.async(),
-			focus = false,
 			input = jQuery( frameDoc ).find( "#frame-input" );
 
 		// Create a focusin handler on the parent; shouldn't affect the iframe's fate
@@ -2717,15 +2723,7 @@ testIframe(
 		// Remove body handler manually since it's outside the fixture
 		jQuery( "body" ).off( "focusin.iframeTest" );
 
-		setTimeout( function() {
-
-			// DOM focus is unreliable in TestSwarm
-			if ( QUnit.isSwarm && !focus ) {
-				assert.ok( true, "GAP: Could not observe focus change" );
-			}
-
-			done();
-		}, 50 );
+		setTimeout( done, 50 );
 	}
 );
 
@@ -2747,11 +2745,6 @@ QUnit.test( "focusin on document & window", function( assert ) {
 	jQuery( document ).on( "focusout", increment );
 
 	input[ 0 ].blur();
-
-	// DOM focus is unreliable in TestSwarm
-	if ( QUnit.isSwarm && counter === 0 ) {
-		assert.ok( true, "GAP: Could not observe focus change" );
-	}
 
 	assert.strictEqual( counter, 2,
 		"focusout handlers on document/window fired once only" );
@@ -3045,20 +3038,8 @@ QUnit.test( "preventDefault() on focusin does not throw exception", function( as
 			"Preventing default on focusin throws no exception" );
 
 		done();
-		done = null;
 	} );
 	input.trigger( "focus" );
-
-	// DOM focus is unreliable in TestSwarm; set a simulated event workaround timeout
-	setTimeout( function() {
-		if ( !done ) {
-			return;
-		}
-		input[ 0 ].addEventListener( "click", function( nativeEvent ) {
-			jQuery.event.simulate( "focusin", this, jQuery.event.fix( nativeEvent ) );
-		} );
-		input[ 0 ].click();
-	}, QUnit.config.testTimeout / 4 || 1000 );
 } );
 
 QUnit.test( ".on('focus', fn) on a text node doesn't throw", function( assert ) {
@@ -3131,11 +3112,11 @@ QUnit.test(
 				spy.immediate = sinon.stub( event.originalEvent, "stopImmediatePropagation" );
 				event.stopImmediatePropagation();
 			} )
-			.on( "simulated", function( event ) {
+			.on( "simulated", function() {
 				assert.ok( false, "simulated event immediate propagation stopped" );
 			} );
 		outer
-			.on( "simulated", function( event ) {
+			.on( "simulated", function() {
 				assert.ok( false, "simulated event propagation stopped" );
 			} );
 
@@ -3198,8 +3179,7 @@ QUnit.test( "trigger('click') on radio passes extra params", function( assert ) 
 QUnit.test( "focusout/focusin support", function( assert ) {
 	assert.expect( 6 );
 
-	var focus,
-		parent = jQuery( "<div>" ),
+	var parent = jQuery( "<div>" ),
 		input = jQuery( "<input>" ),
 		inputExternal = jQuery( "<input>" );
 
@@ -3244,16 +3224,6 @@ QUnit.test( "focusout/focusin support", function( assert ) {
 	// then lose it
 	inputExternal[ 0 ].focus();
 
-	// DOM focus is unreliable in TestSwarm
-	if ( QUnit.isSwarm && !focus ) {
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-	}
-
 	// cleanup
 	parent.off();
 	input.off();
@@ -3287,12 +3257,6 @@ QUnit.test( "focus-blur order (trac-12868)", function( assert ) {
 	order = 0;
 	assert.equal( document.activeElement, $radio[ 0 ], "radio has focus" );
 	$text.trigger( "focus" );
-
-	// DOM focus is unreliable in TestSwarm
-	if ( QUnit.isSwarm && order === 0 ) {
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-	}
 
 	assert.equal( document.activeElement, $text[ 0 ], "text has focus" );
 
@@ -3341,18 +3305,6 @@ QUnit.test( "Event handling works with multiple async focus events (gh-4350)", f
 
 	// gain focus
 	input.trigger( "focus" );
-
-	// DOM focus is unreliable in TestSwarm
-	setTimeout( function() {
-		if ( QUnit.isSwarm && remaining === 3 ) {
-			assert.ok( true, "GAP: Could not observe focus change" );
-			assert.ok( true, "GAP: Could not observe focus change" );
-			assert.ok( true, "GAP: Could not observe focus change" );
-			setTimeout( function() {
-				done();
-			} );
-		}
-	} );
 } );
 
 // Support: IE <=9 - 11+
@@ -3546,6 +3498,64 @@ QUnit.test( "trigger(focus) fires native & jQuery handlers (gh-5015)", function(
 	} );
 
 	input.trigger( "focus" );
+} );
+
+QUnit.test( "duplicate native blur doesn't crash (gh-5459)", function( assert ) {
+	assert.expect( 4 );
+
+	function patchAddEventListener( elem ) {
+		var nativeAddEvent = elem[ 0 ].addEventListener;
+
+		// Support: Firefox 124+
+		// In Firefox, alert displayed just before blurring an element
+		// dispatches the native blur event twice which tripped the jQuery
+		// logic. We cannot call `alert()` in unit tests; simulate the
+		// behavior by overwriting the native `addEventListener` with
+		// a version that calls blur handlers twice.
+		//
+		// Such a simulation allows us to test whether `leverageNative`
+		// logic correctly differentiates between data saved by outer/inner
+		// handlers, so it's useful even without the Firefox bug.
+		elem[ 0 ].addEventListener = function( eventName, handler ) {
+			var finalHandler;
+			if ( eventName === "blur" ) {
+				finalHandler = function wrappedHandler() {
+					handler.apply( this, arguments );
+					return handler.apply( this, arguments );
+				};
+			} else {
+				finalHandler = handler;
+			}
+			return nativeAddEvent.call( this, eventName, finalHandler );
+		};
+	}
+
+	function runTest( handler, message ) {
+		var button = jQuery( "<button></button>" );
+
+		patchAddEventListener( button );
+		button.appendTo( "#qunit-fixture" );
+
+		if ( handler ) {
+			button.on( "blur", handler );
+		}
+		button.on( "focus", function() {
+			button.trigger( "blur" );
+			assert.ok( true, "Did not crash (" + message + ")" );
+		} );
+		button.trigger( "focus" );
+	}
+
+	runTest( undefined, "no prior handler" );
+	runTest( function() {
+		return true;
+	}, "prior handler returning true" );
+	runTest( function() {
+		return { length: 42 };
+	}, "prior handler returning an array-like" );
+	runTest( function() {
+		return { value: 42 };
+	}, "prior handler returning `{ value }`" );
 } );
 
 // TODO replace with an adaptation of

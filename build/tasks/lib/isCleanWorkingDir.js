@@ -1,9 +1,9 @@
-"use strict";
+import util from "node:util";
+import { exec as nodeExec } from "node:child_process";
 
-const util = require( "util" );
-const exec = util.promisify( require( "child_process" ).exec );
+const exec = util.promisify( nodeExec );
 
-module.exports = async function isCleanWorkingDir() {
+export default async function isCleanWorkingDir() {
 	const { stdout } = await exec( "git status --untracked-files=no --porcelain" );
 	return !stdout.trim();
-};
+}

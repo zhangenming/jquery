@@ -1,14 +1,15 @@
-import chalk from "chalk";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
 import { exec as nodeExec } from "node:child_process";
-import isCleanWorkingDir from "./lib/isCleanWorkingDir.js";
+import chalk from "chalk";
+import isCleanWorkingDir from "./isCleanWorkingDir.js";
 
-const VERSION = 1;
+const VERSION = 2;
 const lastRunBranch = " last run";
 
 const gzip = promisify( zlib.gzip );
+const brotli = promisify( zlib.brotliCompress );
 const exec = promisify( nodeExec );
 
 async function getBranchName() {
@@ -34,7 +35,7 @@ function getBranchHeader( branch, commit ) {
 async function getCache( loc ) {
 	let cache;
 	try {
-		const contents = await fs.promises.readFile( loc, "utf8" );
+		const contents = await fs.readFile( loc, "utf8" );
 		cache = JSON.parse( contents );
 	} catch ( err ) {
 		return {};
@@ -53,14 +54,17 @@ function cacheResults( results ) {
 	results.forEach( function( result ) {
 		files[ result.filename ] = {
 			raw: result.raw,
-			gz: result.gz
+			gz: result.gz,
+			br: result.br
 		};
 	} );
 	return files;
 }
 
 function saveCache( loc, cache ) {
-	return fs.promises.writeFile( loc, JSON.stringify( cache ) );
+
+	// Keep cache readable for manual edits
+	return fs.writeFile( loc, JSON.stringify( cache, null, "  " ) + "\n" );
 }
 
 function compareSizes( existing, current, padLength ) {
@@ -101,36 +105,41 @@ export async function compareSize( { cache = ".sizecache.json", files } = {} ) {
 
 	let rawPadLength = 0;
 	let gzPadLength = 0;
+	let brPadLength = 0;
 	const results = await Promise.all(
 		files.map( async function( filename ) {
 
-			let contents = await fs.promises.readFile( filename, "utf8" );
+			let contents = await fs.readFile( filename, "utf8" );
 
 			// Remove the short SHA and .dirty from comparisons.
 			// The short SHA so commits can be compared against each other
 			// and .dirty to compare with the existing branch during development.
-			const sha = /jQuery v\d+.\d+.\d+(?:-\w+)?(?:\+|\+slim\.)?([^ \.]+(?:\.dirty)?)?/.exec( contents )[ 1 ];
+			const sha = /jQuery v\d+.\d+.\d+(?:-[\w\.]+)?(?:\+slim\.|\+)?(\w+(?:\.dirty)?)?/.exec( contents )[ 1 ];
 			contents = contents.replace( new RegExp( sha, "g" ), "" );
 
 			const size = Buffer.byteLength( contents, "utf8" );
 			const gzippedSize = ( await gzip( contents ) ).length;
+			const brotlifiedSize = ( await brotli( contents ) ).length;
 
 			// Add one to give space for the `+` or `-` in the comparison
 			rawPadLength = Math.max( rawPadLength, size.toString().length + 1 );
 			gzPadLength = Math.max( gzPadLength, gzippedSize.toString().length + 1 );
+			brPadLength = Math.max( brPadLength, brotlifiedSize.toString().length + 1 );
 
-			return { filename, raw: size, gz: gzippedSize };
+			return { filename, raw: size, gz: gzippedSize, br: brotlifiedSize };
 		} )
 	);
 
 	const sizeHeader = "raw".padStart( rawPadLength ) +
 		"gz".padStart( gzPadLength + 1 ) +
+		"br".padStart( brPadLength + 1 ) +
 		" Filename";
 
 	const sizes = results.map( function( result ) {
 		const rawSize = result.raw.toString().padStart( rawPadLength );
 		const gzSize = result.gz.toString().padStart( gzPadLength );
-		return `${ rawSize } ${ gzSize } ${ result.filename }`;
+		const brSize = result.br.toString().padStart( brPadLength );
+		return `${ rawSize } ${ gzSize } ${ brSize } ${ result.filename }`;
 	} );
 
 	const comparisons = Object.keys( sizeCache ).sort( sortBranches ).map( function( branch ) {
@@ -146,7 +155,8 @@ export async function compareSize( { cache = ".sizecache.json", files } = {} ) {
 
 			const compareRaw = compareSizes( branchResult.raw, compareResult.raw, rawPadLength );
 			const compareGz = compareSizes( branchResult.gz, compareResult.gz, gzPadLength );
-			return `${ compareRaw } ${ compareGz } ${ filename }`;
+			const compareBr = compareSizes( branchResult.br, compareResult.br, brPadLength );
+			return `${ compareRaw } ${ compareGz } ${ compareBr } ${ filename }`;
 		} );
 
 		return [

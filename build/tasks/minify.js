@@ -1,15 +1,13 @@
-"use strict";
-
-const swc = require( "@swc/core" );
-const fs = require( "fs" );
-const path = require( "path" );
-const processForDist = require( "./dist" );
-const getTimestamp = require( "./lib/getTimestamp" );
+import fs from "node:fs/promises";
+import path from "node:path";
+import swc from "@swc/core";
+import processForDist from "./dist.js";
+import getTimestamp from "./lib/getTimestamp.js";
 
 const rjs = /\.js$/;
 
-module.exports = async function minify( { filename, dir, esm } ) {
-	const contents = await fs.promises.readFile( path.join( dir, filename ), "utf8" );
+export default async function minify( { filename, dir, esm } ) {
+	const contents = await fs.readFile( path.join( dir, filename ), "utf8" );
 	const version = /jQuery JavaScript Library ([^\n]+)/.exec( contents )[ 1 ];
 
 	const { code, map: incompleteMap } = await swc.minify(
@@ -28,8 +26,9 @@ module.exports = async function minify( { filename, dir, esm } ) {
 					" | (c) OpenJS Foundation and other contributors" +
 					" | jquery.org/license */\n"
 			},
-			mangle: true,
 			inlineSourcesContent: false,
+			mangle: true,
+			module: esm,
 			sourceMap: true
 		}
 	);
@@ -47,11 +46,11 @@ module.exports = async function minify( { filename, dir, esm } ) {
 	} );
 
 	await Promise.all( [
-		fs.promises.writeFile(
+		fs.writeFile(
 			path.join( dir, minFilename ),
 			code
 		),
-		fs.promises.writeFile(
+		fs.writeFile(
 			path.join( dir, mapFilename ),
 			map
 		)
@@ -66,4 +65,4 @@ module.exports = async function minify( { filename, dir, esm } ) {
 	console.log( `[${ getTimestamp() }] ${ minFilename } ${ version } with ${
 		mapFilename
 	} created.` );
-};
+}
