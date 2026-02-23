@@ -264,6 +264,16 @@ QUnit.assert.ok( true, "mock executed");';
 		echo file_get_contents( __DIR__ . '/trusted-types-attributes.html' );
 	}
 
+	protected function xmlCss( $req ) {
+		header( 'Content-type: application/xml' );
+		echo file_get_contents( __DIR__ . '/css/xmlDocCss.xhtml' );
+	}
+
+	protected function xmlAjax( $req ) {
+		header( 'Content-type: application/xml' );
+		echo file_get_contents( __DIR__ . '/ajax/xmlDocCrossDomainDetection.xhtml' );
+	}
+
 	protected function errorWithScript( $req ) {
 		header( 'HTTP/1.0 404 Not Found' );
 		if ( isset( $req->query['withScriptContentType'] ) ) {

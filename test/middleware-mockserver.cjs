@@ -319,6 +319,17 @@ const mocks = {
 			`${ __dirname }/data/trusted-types-attributes.html` ).toString();
 		resp.end( body );
 	},
+	xmlCss: function( _req, resp ) {
+		resp.writeHead( 200, { "Content-Type": "application/xml" } );
+		const body = readFileSync( `${ __dirname }/data/css/xmlDocCss.xhtml` ).toString();
+		resp.end( body );
+	},
+	xmlAjax: function( _req, resp ) {
+		resp.writeHead( 200, { "Content-Type": "application/xml" } );
+		const body = readFileSync(
+			`${ __dirname }/data/ajax/xmlDocCrossDomainDetection.xhtml` ).toString();
+		resp.end( body );
+	},
 	errorWithScript: function( req, resp ) {
 		if ( req.query.withScriptContentType ) {
 			resp.writeHead( 404, { "Content-Type": "application/javascript" } );
